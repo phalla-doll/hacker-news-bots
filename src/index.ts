@@ -1,40 +1,81 @@
-/**
- * Welcome to Cloudflare Workers!
- *
- * This is a template for a Scheduled Worker: a Worker that can run on a
- * configurable interval:
- * https://developers.cloudflare.com/workers/platform/triggers/cron-triggers/
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Run `curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"` to see your Worker in action
- * - Run `npm run deploy` to publish your Worker
- *
- * Bind resources to your Worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
 export default {
-	async fetch(req) {
-		const url = new URL(req.url);
-		url.pathname = '/__scheduled';
-		url.searchParams.append('cron', '* * * * *');
-		return new Response(`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`);
+	async scheduled(event, env, ctx) {
+		const BOT_TOKEN = env.BOT_TOKEN;
+		const CHAT_ID = env.CHAT_ID;
+
+		if (!BOT_TOKEN || !CHAT_ID) {
+			console.error("Missing BOT_TOKEN or CHAT_ID");
+			return;
+		}
+
+		try {
+			const idsRes = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
+			const ids: number[] = await idsRes.json();
+
+			const topIds = ids.slice(0, 20);
+
+			const posts = await Promise.all(
+				topIds.map(id =>
+					fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+						.then(res => res.json())
+				)
+			);
+
+			const keywords = ["ai", "react", "angular", "startup"];
+
+			const filtered = posts.filter(p =>
+				p?.title &&
+				keywords.some(k => p.title.toLowerCase().includes(k)) &&
+				p.score >= 50
+			);
+
+			const newPosts = [];
+			for (const post of filtered) {
+				const exists = await env.HN_CACHE.get(`seen:${post.id}`);
+				if (!exists) {
+					newPosts.push(post);
+					await env.HN_CACHE.put(`seen:${post.id}`, "1", { expirationTtl: 172800 });
+				}
+			}
+
+			if (!newPosts.length) {
+				console.log("No new posts to send");
+				return;
+			}
+
+			const message =
+				"🔥 Hacker News Digest\n\n" +
+				newPosts
+					.map(p => `• ${p.title}\nhttps://news.ycombinator.com/item?id=${p.id}`)
+					.join("\n\n");
+
+			const response = await fetch(
+				`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						chat_id: CHAT_ID,
+						text: message
+					})
+				}
+			);
+
+			if (!response.ok) {
+				const error = await response.text();
+				console.error("Telegram API error:", error);
+			} else {
+				console.log(`Sent ${newPosts.length} posts to Telegram`);
+			}
+		} catch (error) {
+			console.error("Error in scheduled task:", error);
+		}
 	},
 
-	// The scheduled handler is invoked at the interval set in our wrangler.jsonc's
-	// [[triggers]] configuration.
-	async scheduled(event, env, ctx): Promise<void> {
-		// A Cron Trigger can make requests to other endpoints on the Internet,
-		// publish to a Queue, query a D1 Database, and much more.
-		//
-		// We'll keep it simple and make an API call to a Cloudflare API:
-		let resp = await fetch('https://api.cloudflare.com/client/v4/ips');
-		let wasSuccessful = resp.ok ? 'success' : 'fail';
-
-		// You could store this result in KV, write to a D1 Database, or publish to a Queue.
-		// In this template, we'll just log the result:
-		console.log(`trigger fired at ${event.cron}: ${wasSuccessful}`);
+	async fetch(req) {
+		const url = new URL(req.url);
+		url.pathname = "/cdn-cgi/handler/scheduled";
+		url.searchParams.append("cron", "0 */5 * * *");
+		return new Response(`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`);
 	},
 } satisfies ExportedHandler<Env>;

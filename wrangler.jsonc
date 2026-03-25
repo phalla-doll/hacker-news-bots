@@ -12,9 +12,15 @@
 	},
 	"triggers": {
 		"crons": [
-			"* * * * *"
+			"0 */5 * * *"
 		]
 	},
+	"kv_namespaces": [
+		{
+			"binding": "HN_CACHE",
+			"id": "5dabfdaafc7f42ef8ffeed3be54f24c9"
+		}
+	],
 	"upload_source_maps": true,
 	"compatibility_flags": [
 		"nodejs_compat"
