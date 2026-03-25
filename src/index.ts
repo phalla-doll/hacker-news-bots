@@ -75,7 +75,7 @@ export default {
 	async fetch(req) {
 		const url = new URL(req.url);
 		url.pathname = "/cdn-cgi/handler/scheduled";
-		url.searchParams.append("cron", "0 */5 * * *");
+		url.searchParams.append("cron", "0 */3 * * *");
 		return new Response(`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`);
 	},
 } satisfies ExportedHandler<Env>;
