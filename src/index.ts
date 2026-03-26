@@ -25,7 +25,7 @@ export default {
 
 			const filtered = posts.filter(p =>
 				p?.title &&
-				keywords.some(k => p.title.toLowerCase().includes(k)) &&
+				keywords.some(k => new RegExp(`\\b${k}\\b`, 'i').test(p.title)) &&
 				p.score >= 50
 			);
 
