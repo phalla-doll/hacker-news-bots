@@ -21,7 +21,7 @@ export default {
 				)
 			);
 
-			const keywords = ["ai", "react", "angular", "startup"];
+			const keywords = ["ai", "react", "angular", "startup", "nextjs"];
 
 			const filtered = posts.filter(p =>
 				p?.title &&
