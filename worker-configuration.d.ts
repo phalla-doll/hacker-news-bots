@@ -9,6 +9,8 @@ declare namespace Cloudflare {
 		HN_CACHE: KVNamespace;
 		BOT_TOKEN: string;
 		CHAT_ID: string;
+		GITHUB_TOKEN: string;
+		GITHUB_REPO: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
@@ -16,7 +18,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "BOT_TOKEN" | "CHAT_ID">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "BOT_TOKEN" | "CHAT_ID" | "GITHUB_TOKEN" | "GITHUB_REPO">> {}
 }
 
 // Begin runtime types
